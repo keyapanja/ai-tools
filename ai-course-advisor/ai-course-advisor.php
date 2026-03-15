@@ -2,7 +2,7 @@
 /**
  * Plugin Name: AI Course Advisor
  * Description: Intelligent, self-hosted chatbot that indexes site content and recommends the best course/product based on user goals.
- * Version: 1.0.0
+ * Version: 1.1
  * Author: AI Course Advisor Team
  * Text Domain: ai-course-advisor
  */
