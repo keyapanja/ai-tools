@@ -55,14 +55,10 @@ function aica_index_single_post( $post_id ) {
 		return;
 	}
 
-	$url = get_permalink( $post_id );
-	if ( aica_is_non_advisor_page_url( $url ) ) {
-		return;
-	}
-
 	$title   = get_the_title( $post_id );
 	$content = wp_strip_all_tags( apply_filters( 'the_content', $post->post_content ) );
 	$excerpt = has_excerpt( $post_id ) ? get_the_excerpt( $post_id ) : wp_trim_words( $content, 40 );
+	$url     = get_permalink( $post_id );
 
 	$meta = array(
 		'post_type' => $post_type,
@@ -106,38 +102,14 @@ function aica_guess_checkout_link( $post_id, $url ) {
 	if ( class_exists( 'WooCommerce' ) ) {
 		$product = wc_get_product( $post_id );
 		if ( $product ) {
-			return esc_url_raw( add_query_arg( 'add-to-cart', $post_id, wc_get_checkout_url() ) );
+			return wc_get_checkout_url() . '?add-to-cart=' . $post_id;
 		}
 	}
 
 	$cta_link = get_post_meta( $post_id, 'cta_link', true );
 	if ( ! empty( $cta_link ) ) {
-		$cta_link = esc_url_raw( $cta_link );
-		if ( ! aica_is_non_advisor_page_url( $cta_link ) ) {
-			return $cta_link;
-		}
+		return esc_url_raw( $cta_link );
 	}
 
 	return esc_url_raw( $url );
-}
-
-/**
- * Filter out utility/account pages from advisor index and CTA links.
- *
- * @param string $url URL.
- *
- * @return bool
- */
-function aica_is_non_advisor_page_url( $url ) {
-	$path = wp_parse_url( $url, PHP_URL_PATH );
-	$path = is_string( $path ) ? strtolower( trim( $path, '/' ) ) : '';
-
-	$blocked_parts = array( 'my-account', 'checkout', 'order-received', 'thank-you', 'cart', 'privacy-policy', 'wp-admin' );
-	foreach ( $blocked_parts as $blocked ) {
-		if ( false !== strpos( $path, $blocked ) ) {
-			return true;
-		}
-	}
-
-	return false;
 }

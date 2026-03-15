@@ -55,43 +55,13 @@ function aica_handle_chat_request( WP_REST_Request $request ) {
 		);
 	}
 
-	$history = aica_sanitize_chat_history( $request->get_param( 'history' ) );
-	$payload = aica_get_recommendation_for_query( $message, $history );
+	$payload = aica_get_recommendation_for_query( $message );
 
 	return new WP_REST_Response(
 		array(
-			'answer'        => wp_kses_post( $payload['answer'] ),
-			'book_link'     => esc_url_raw( $payload['book_link'] ),
-			'show_book_now' => ! empty( $payload['show_book_now'] ),
+			'answer'    => wp_kses_post( $payload['answer'] ),
+			'book_link' => esc_url_raw( $payload['book_link'] ),
 		),
 		200
 	);
-}
-
-/**
- * Sanitize chat history payload.
- *
- * @param mixed $raw_history Incoming history.
- *
- * @return array<int,array<string,string>>
- */
-function aica_sanitize_chat_history( $raw_history ) {
-	if ( ! is_array( $raw_history ) ) {
-		return array();
-	}
-
-	$history = array();
-	foreach ( array_slice( $raw_history, -8 ) as $turn ) {
-		if ( ! is_array( $turn ) || empty( $turn['content'] ) ) {
-			continue;
-		}
-
-		$role = ! empty( $turn['role'] ) && in_array( $turn['role'], array( 'user', 'assistant', 'bot' ), true ) ? $turn['role'] : 'user';
-		$history[] = array(
-			'role'    => $role,
-			'content' => sanitize_text_field( $turn['content'] ),
-		);
-	}
-
-	return $history;
 }

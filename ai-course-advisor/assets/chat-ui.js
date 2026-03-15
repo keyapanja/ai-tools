@@ -6,8 +6,6 @@
     }
 
     var cfg = window.AICourseAdvisor;
-    var history = [];
-
     var shell = document.createElement('div');
     shell.className = 'aica-shell';
     shell.innerHTML =
@@ -36,7 +34,6 @@
       item.innerHTML = text;
       messages.appendChild(item);
       messages.scrollTop = messages.scrollHeight;
-      return item;
     }
 
     appendMessage(cfg.greeting || 'Hi 👋 Tell me what you are looking for today.', 'bot');
@@ -53,7 +50,6 @@
       if (!text) return;
 
       appendMessage(text.replace(/</g, '&lt;'), 'user');
-      history.push({ role: 'user', content: text });
       input.value = '';
 
       var typing = document.createElement('div');
@@ -67,29 +63,14 @@
           'Content-Type': 'application/json',
           'X-WP-Nonce': cfg.nonce,
         },
-        body: JSON.stringify({ message: text, history: history.slice(-8) }),
+        body: JSON.stringify({ message: text }),
       })
         .then(function (r) {
           return r.json();
         })
         .then(function (data) {
           typing.remove();
-
-          var answer = data.answer || 'I had trouble replying. Could you rephrase your goal in one sentence?';
-          var botMessage = appendMessage(answer, 'bot');
-          history.push({ role: 'assistant', content: botMessage.textContent || answer });
-
-          if (data.show_book_now && data.book_link) {
-            var link = document.createElement('a');
-            link.className = 'aica-book-now';
-            link.href = data.book_link;
-            link.target = '_blank';
-            link.rel = 'noopener';
-            link.textContent = 'Book Now';
-            botMessage.appendChild(document.createElement('br'));
-            botMessage.appendChild(document.createElement('br'));
-            botMessage.appendChild(link);
-          }
+          appendMessage(data.answer || 'Sorry, I could not generate a recommendation.', 'bot');
         })
         .catch(function () {
           typing.remove();

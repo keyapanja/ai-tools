@@ -146,61 +146,30 @@ function aica_generate_gemini_embedding( $text, $api_key ) {
 /**
  * Generate final recommendation text using configured provider.
  *
- * @param string $prompt  Prompt.
- * @param array  $history Conversation history.
+ * @param string $prompt Prompt.
  *
  * @return string
  */
-function aica_generate_chat_completion( $prompt, $history = array() ) {
+function aica_generate_chat_completion( $prompt ) {
 	$settings = aica_get_settings();
 	$provider = isset( $settings['api_provider'] ) ? $settings['api_provider'] : 'openai';
 	$api_key  = isset( $settings['api_key'] ) ? trim( $settings['api_key'] ) : '';
 
 	if ( empty( $api_key ) ) {
-		return '';
+		return __( 'I found relevant courses based on your goal. Please add an API key in AI Course Advisor settings for richer conversational recommendations.', 'ai-course-advisor' );
 	}
 
 	if ( 'gemini' === $provider ) {
-		return aica_generate_gemini_response( $prompt, $api_key, $history );
+		return aica_generate_gemini_response( $prompt, $api_key );
 	}
 
-	return aica_generate_openai_response( $prompt, $api_key, $history );
+	return aica_generate_openai_response( $prompt, $api_key );
 }
 
 /**
  * OpenAI chat completion.
- *
- * @param string $prompt  Prompt.
- * @param string $api_key API key.
- * @param array  $history Chat history.
- *
- * @return string
  */
-function aica_generate_openai_response( $prompt, $api_key, $history = array() ) {
-	$messages = array(
-		array(
-			'role'    => 'system',
-			'content' => 'You are an empathetic AI course advisor. Answer conversationally, ask short follow-up questions when useful, and recommend only from provided context.',
-		),
-	);
-
-	foreach ( array_slice( (array) $history, -6 ) as $turn ) {
-		if ( empty( $turn['role'] ) || empty( $turn['content'] ) ) {
-			continue;
-		}
-
-		$role = ( 'assistant' === $turn['role'] || 'bot' === $turn['role'] ) ? 'assistant' : 'user';
-		$messages[] = array(
-			'role'    => $role,
-			'content' => sanitize_text_field( $turn['content'] ),
-		);
-	}
-
-	$messages[] = array(
-		'role'    => 'user',
-		'content' => $prompt,
-	);
-
+function aica_generate_openai_response( $prompt, $api_key ) {
 	$response = wp_remote_post(
 		'https://api.openai.com/v1/chat/completions',
 		array(
@@ -211,8 +180,17 @@ function aica_generate_openai_response( $prompt, $api_key, $history = array() ) 
 			'body'    => wp_json_encode(
 				array(
 					'model'       => 'gpt-4o-mini',
-					'temperature' => 0.4,
-					'messages'    => $messages,
+					'temperature' => 0.3,
+					'messages'    => array(
+						array(
+							'role'    => 'system',
+							'content' => 'You are an expert course advisor. Give concise recommendation with duration, price and booking CTA.',
+						),
+						array(
+							'role'    => 'user',
+							'content' => $prompt,
+						),
+					),
 				)
 			),
 			'timeout' => 30,
@@ -220,32 +198,17 @@ function aica_generate_openai_response( $prompt, $api_key, $history = array() ) 
 	);
 
 	if ( is_wp_error( $response ) ) {
-		return '';
+		return __( 'Unable to reach AI provider right now. Please try again shortly.', 'ai-course-advisor' );
 	}
 
 	$body = json_decode( wp_remote_retrieve_body( $response ), true );
-	return isset( $body['choices'][0]['message']['content'] ) ? wp_kses_post( $body['choices'][0]['message']['content'] ) : '';
+	return isset( $body['choices'][0]['message']['content'] ) ? wp_kses_post( $body['choices'][0]['message']['content'] ) : __( 'No response received from AI provider.', 'ai-course-advisor' );
 }
 
 /**
  * Gemini response generation.
- *
- * @param string $prompt  Prompt.
- * @param string $api_key API key.
- * @param array  $history Chat history.
- *
- * @return string
  */
-function aica_generate_gemini_response( $prompt, $api_key, $history = array() ) {
-	$history_text = '';
-	foreach ( array_slice( (array) $history, -6 ) as $turn ) {
-		if ( empty( $turn['role'] ) || empty( $turn['content'] ) ) {
-			continue;
-		}
-		$role = ( 'assistant' === $turn['role'] || 'bot' === $turn['role'] ) ? 'Advisor' : 'User';
-		$history_text .= $role . ': ' . sanitize_text_field( $turn['content'] ) . "\n";
-	}
-
+function aica_generate_gemini_response( $prompt, $api_key ) {
 	$url      = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' . rawurlencode( $api_key );
 	$response = wp_remote_post(
 		$url,
@@ -256,7 +219,7 @@ function aica_generate_gemini_response( $prompt, $api_key, $history = array() ) 
 					'contents' => array(
 						array(
 							'parts' => array(
-								array( 'text' => "Conversation so far:\n{$history_text}\n\n{$prompt}" ),
+								array( 'text' => $prompt ),
 							),
 						),
 					),
@@ -267,7 +230,7 @@ function aica_generate_gemini_response( $prompt, $api_key, $history = array() ) 
 	);
 
 	if ( is_wp_error( $response ) ) {
-		return '';
+		return __( 'Unable to reach AI provider right now. Please try again shortly.', 'ai-course-advisor' );
 	}
 
 	$body = json_decode( wp_remote_retrieve_body( $response ), true );
@@ -275,5 +238,5 @@ function aica_generate_gemini_response( $prompt, $api_key, $history = array() ) 
 		return wp_kses_post( $body['candidates'][0]['content']['parts'][0]['text'] );
 	}
 
-	return '';
+	return __( 'No response received from AI provider.', 'ai-course-advisor' );
 }
